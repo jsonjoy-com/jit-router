@@ -10,7 +10,12 @@ for the best performance.
 Comparing `json-joy` against the second fastest router `find-my-way` (used in Fastify):
 
 ```
-ts-node benchmarks/util/router/realistic.bench.ts 
+npx ts-node src/__bench__/realistic.bench.ts
+```
+
+Results:
+
+```
 json-joy router x 1,799,920 ops/sec ±0.74% (99 runs sampled), 556 ns/op
 find-my-way x 389,132 ops/sec ±4.60% (87 runs sampled), 2570 ns/op
 json-joy router: GET /ping x 151,628,101 ops/sec ±1.83% (87 runs sampled), 7 ns/op
