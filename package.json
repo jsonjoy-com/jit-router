@@ -60,7 +60,10 @@
     "tslib": "2"
   },
   "peerDependenciesMeta": {},
-  "dependencies": {},
+  "dependencies": {
+    "@jsonjoy.com/util": "^1.1.0",
+    "sonic-forest": "^1.0.0"
+  },
   "devDependencies": {
     "@types/benchmark": "^2.1.5",
     "@types/jest": "^29.5.12",

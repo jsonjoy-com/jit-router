@@ -39,9 +39,7 @@
   ],
   "typedocOptions": {
     "entryPoints": [
-      "src/common/index.ts",
-      "src/browser/index.ts",
-      "src/server/index.ts"
+      "src/index.ts"
     ],
     "out": "typedocs"
   }
