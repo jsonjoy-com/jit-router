@@ -1,7 +1,7 @@
 # `json-joy` JIT Router
 
 A high-performance (HTTP) router, which constructs a Trie and Radix intermingled
-tree of the route structure and the JIT compiles the routes into a single function
+tree of the route structure and then JIT compiles the routes into a single function
 for the best performance.
 
 
