@@ -1,8 +1,355 @@
 # `json-joy` JIT Router
 
-A high-performance (HTTP) router, which constructs a Trie and Radix intermingled
-tree of the route structure and then JIT compiles the routes into a single function
-for the best performance.
+A high-performance HTTP router that constructs a hybrid Trie and Radix tree of the route structure and then JIT compiles the routes into a single optimized function for maximum performance.
+
+## Key Features
+
+- **Ultra-Fast Performance**: JIT compilation generates optimized JavaScript functions for route matching
+- **Hybrid Tree Structure**: Combines Trie and Radix tree algorithms for efficient path matching
+- **Flexible Route Patterns**: Supports exact matches, parameters, wildcards, and regex patterns
+- **Parameter Extraction**: Automatically extracts and validates route parameters
+- **TypeScript Support**: Full TypeScript definitions with generic data types
+- **Zero Dependencies**: Core runtime has no external dependencies for maximum efficiency
+
+## Installation
+
+```bash
+npm install @jsonjoy.com/jit-router
+```
+
+## Quick Start
+
+```typescript
+import { Router } from '@jsonjoy.com/jit-router';
+
+// Create a new router instance
+const router = new Router();
+
+// Add routes with associated data
+router.add('GET /users', { handler: 'listUsers' });
+router.add('GET /users/{id}', { handler: 'getUser' });
+router.add('POST /users/{id}/posts', { handler: 'createPost' });
+
+// Compile routes into an optimized matcher function
+const matcher = router.compile();
+
+// Match incoming requests
+const match = matcher('GET /users/123');
+if (match) {
+  console.log(match.data);    // { handler: 'getUser' }
+  console.log(match.params);  // ['123']
+}
+```
+
+## Destinations
+
+Destinations are the core concept in jit-router. Each destination represents an endpoint with associated data and can be reached via one or more route patterns.
+
+### Creating Destinations
+
+```typescript
+// Single route destination
+router.add('GET /ping', 'PING_HANDLER');
+
+// Multiple routes leading to same destination
+router.add(['GET /ping', 'GET /pong'], 'PING_HANDLER');
+
+// With custom data
+router.add('GET /users/{id}', { 
+  handler: getUserHandler,
+  middleware: [authMiddleware],
+  cache: true 
+});
+```
+
+### Destination Properties
+
+Each destination contains:
+- **routes**: Array of route patterns that lead to this destination
+- **data**: Associated data (handler, metadata, etc.)
+- **match**: Match object returned when route is matched
+
+## Route Patterns and Step Specifications
+
+Routes consist of steps that define the matching pattern. There are three types of steps:
+
+### 1. Exact Steps
+
+Match literal text exactly:
+
+```typescript
+router.add('GET /api/users', 'USERS_API');
+router.add('POST /login', 'LOGIN');
+```
+
+### 2. Parameter Steps (Until Steps)
+
+Extract parameters from the URL path:
+
+```typescript
+// Basic parameter - matches until next '/'
+router.add('GET /users/{id}', 'GET_USER');
+
+// Custom delimiter - matches until specified character
+router.add('GET /files/{name}.{ext}', 'GET_FILE');
+
+// Wildcard - matches until end of string
+router.add('GET /static/{path::\n}', 'STATIC_FILES');
+```
+
+#### Parameter Syntax:
+- `{name}` - matches until next `/` (default delimiter)
+- `{name::delimiter}` - matches until specified delimiter
+- `{name::\n}` - matches until end of string (wildcard)
+
+### 3. Regex Steps
+
+Match parameters with regex patterns:
+
+```typescript
+// HTTP method matching
+router.add('{method:(GET|POST)} /api/{endpoint}', 'API_HANDLER');
+
+// Numeric IDs only
+router.add('GET /users/{id:[0-9]+}', 'GET_USER_BY_ID');
+
+// Optional path segments
+router.add('GET /posts{slug:(/[^/]+)?}', 'GET_POST');
+
+// Complex patterns
+router.add('{method:[A-Z]+} /rpc/{procedure}', 'RPC_HANDLER');
+```
+
+#### Regex Syntax:
+- `{name:pattern}` - matches with regex pattern
+- `{name:pattern:delimiter}` - regex pattern with custom delimiter
+
+## Parameter Extraction
+
+Parameters are automatically extracted and provided in the match result:
+
+```typescript
+const router = new Router();
+router.add('GET /users/{userId}/posts/{postId}', 'GET_USER_POST');
+const matcher = router.compile();
+
+const match = matcher('GET /users/123/posts/456');
+// match.params = ['123', '456']
+
+// Parameters correspond to the order they appear in the route
+const [userId, postId] = match.params;
+```
+
+### Named Parameter Access
+
+For better parameter handling, consider structuring your data to include parameter names:
+
+```typescript
+router.add('GET /users/{userId}/posts/{postId}', {
+  handler: 'getUserPost',
+  params: ['userId', 'postId']
+});
+
+const match = matcher('GET /users/123/posts/456');
+if (match) {
+  const params = {};
+  match.data.params.forEach((name, index) => {
+    params[name] = match.params[index];
+  });
+  // params = { userId: '123', postId: '456' }
+}
+```
+
+## Code Generation and Compilation
+
+The router uses JIT (Just-In-Time) compilation to generate highly optimized JavaScript functions:
+
+### Compilation Process
+
+1. **Tree Construction**: Routes are organized into a hybrid Trie/Radix tree structure
+2. **Code Generation**: The tree is traversed to generate optimized JavaScript code
+3. **Function Creation**: Code is compiled into a fast matcher function
+
+```typescript
+const router = new Router();
+router.add('GET /users/{id}', 'USER_HANDLER');
+
+// View the internal tree structure
+console.log(router.toString());
+
+// Compile to optimized function
+const matcher = router.compile();
+
+// View generated code (for debugging)
+console.log(matcher.toString());
+```
+
+### Performance Characteristics
+
+The JIT compilation produces functions with these optimizations:
+- **No loops**: Uses conditional branches instead of iteration
+- **String operations**: Optimized string slicing and comparison
+- **Early returns**: Matches return immediately when found
+- **Minimal allocations**: Reuses objects and avoids unnecessary memory allocation
+
+## Advanced Usage Examples
+
+### Complex Routing Patterns
+
+```typescript
+const router = new Router();
+
+// API versioning
+router.add('GET /api/v{version:[12]}/users', 'API_USERS');
+
+// File serving with extensions
+router.add('GET /assets/{file}.{ext:(js|css|png|jpg)}', 'STATIC_ASSET');
+
+// Optional trailing slashes
+router.add('GET /blog{trailing:/?}', 'BLOG_INDEX');
+
+// Nested parameters with validation
+router.add('POST /orgs/{org}/repos/{repo}/issues/{num:[0-9]+}', 'GITHUB_ISSUE');
+
+// Wildcard with method matching
+router.add('{method:(GET|HEAD)} /files/{path::\n}', 'FILE_HANDLER');
+
+const matcher = router.compile();
+```
+
+### Custom Router Options
+
+```typescript
+// Custom default delimiter
+const router = new Router({ 
+  defaultUntil: '|'  // Use '|' instead of '/' as default delimiter
+});
+
+router.add('GET |users|{id}', 'USER_HANDLER');
+```
+
+### Type-Safe Usage with TypeScript
+
+```typescript
+interface RouteData {
+  handler: string;
+  middleware?: Function[];
+  cache?: boolean;
+}
+
+const router = new Router<RouteData>();
+
+router.add('GET /users/{id}', {
+  handler: 'getUser',
+  middleware: [authMiddleware],
+  cache: true
+});
+
+const matcher = router.compile();
+const match = matcher('GET /users/123');
+
+if (match) {
+  // TypeScript knows match.data is RouteData
+  console.log(match.data.handler);     // 'getUser'
+  console.log(match.data.cache);       // true
+  console.log(match.params);           // ['123']
+}
+```
+
+### Route Introspection
+
+```typescript
+const router = new Router();
+router.add('GET /users/{id}', 'USER_HANDLER');
+router.add('POST /users', 'CREATE_USER');
+
+// Inspect destinations
+console.log('Destinations:', router.destinations.length);
+router.destinations.forEach((dest, i) => {
+  console.log(`[${i}]:`, dest.routes.map(r => r.toText()));
+});
+
+// View routing tree structure
+const tree = router.tree();
+console.log(tree.toString('  '));
+```
+
+## API Reference
+
+### Router Class
+
+#### Constructor
+```typescript
+new Router<Data>(options?: RouterOptions)
+```
+
+**Options:**
+- `defaultUntil?: string` - Default delimiter for parameter steps (default: '/')
+
+#### Methods
+
+##### `add(route: string | string[], data: Data): void`
+Add a route or multiple routes to the same destination.
+
+##### `addDestination(destination: Destination): void`
+Add a pre-constructed destination.
+
+##### `compile(): RouteMatcher<Data>`
+Compile routes into an optimized matcher function.
+
+##### `tree(): RoutingTreeNode`
+Get the internal routing tree structure.
+
+### RouteMatcher Function
+
+```typescript
+(route: string) => Match<Data> | undefined
+```
+
+Returns a `Match` object if the route matches, `undefined` otherwise.
+
+### Match Object
+
+```typescript
+interface Match<Data> {
+  data: Data;           // Associated route data
+  params: string[];     // Extracted parameters
+}
+```
+
+### Route Step Types
+
+#### ExactStep
+Matches literal text exactly.
+
+#### UntilStep  
+Matches parameters until a delimiter:
+- `name: string` - Parameter name
+- `until: string` - Delimiter character
+
+#### RegexStep
+Matches parameters with regex patterns:
+- `name: string` - Parameter name  
+- `regex: string` - Regex pattern
+- `until: string` - Delimiter character
+
+## Error Handling
+
+The router handles various edge cases gracefully:
+
+```typescript
+const router = new Router();
+router.add('GET /users/{id}', 'USER_HANDLER');
+const matcher = router.compile();
+
+// Non-matching routes return undefined
+console.log(matcher('GET /posts/123'));     // undefined
+console.log(matcher('POST /users/123'));    // undefined
+
+// Empty or invalid routes return undefined  
+console.log(matcher(''));                   // undefined
+console.log(matcher('INVALID'));           // undefined
+```
 
 
 ## Benchmarks
